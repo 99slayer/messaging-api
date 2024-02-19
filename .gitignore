@@ -1,3 +1,5 @@
 /node_modules
 .env
 INFO.md
+populate-db.js
+clear-db.js
