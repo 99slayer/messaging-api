@@ -6,6 +6,7 @@ const ChatSchema = new Schema({
 	start_date: { type: Date },
 	users: [{ type: Schema.Types.ObjectId, ref: 'User' }],
 	messages: [{ type: MessageSchema }],
+	most_recent_update: { type: Date, default: null },
 });
 
 module.exports = mongoose.model('Chat', ChatSchema);
