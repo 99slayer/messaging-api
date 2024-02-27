@@ -18,6 +18,7 @@ exports.chat_create = asyncHandler(async (req, res, next) => {
 		start_date: new Date(),
 		users: [...req.body.users],
 		messages: [],
+		most_recent_update: new Date(),
 	});
 	await chat.save();
 

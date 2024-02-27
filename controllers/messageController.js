@@ -26,7 +26,10 @@ exports.message_create = [
 
 		const updatedChat = await Chat.findOneAndUpdate(
 			{ _id: req.params.chatId },
-			{ $push: { messages: message } },
+			{
+				$push: { messages: message },
+				$set: { most_recent_update: new Date() },
+			},
 			{ new: true },
 		);
 
