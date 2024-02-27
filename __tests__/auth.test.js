@@ -6,7 +6,7 @@ const clearDocs = require('../clear-db');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const Token = require('../models/token');
-const debug = require('debug')('test');
+const debug = require('debug')('test:auth');
 
 describe('auth routes/controllers', () => {
 	let users;
@@ -28,16 +28,17 @@ describe('auth routes/controllers', () => {
 		}
 	}
 
+	// For testing expired tokens.
 	async function mockGenerateRefreshToken(user) {
 		const token = jwt.sign({ user }, process.env.REFRESH_TOKEN_SECRET, {
 			expiresIn: '4s',
 		});
 
-		await Token.findOneAndUpdate(
-			{ refresh_token: token },
-			{ $setOnInsert: { refresh_token: token } },
-			{ upsert: true },
-		);
+		const refreshToken = new Token({
+			refresh_token: token,
+		});
+
+		await refreshToken.save();
 
 		return token;
 	}
@@ -49,6 +50,7 @@ describe('auth routes/controllers', () => {
 
 		afterAll(async () => {
 			await teardown();
+			await Token.deleteMany();
 		});
 
 		test('should accept the user credentials and return status code 200 and token', () => {
@@ -57,8 +59,13 @@ describe('auth routes/controllers', () => {
 				.send({ username: 'boggs', password: 'password' })
 				.expect(200)
 				.expect(function (res) {
-					debug(res.body);
-					expect(res.body.token).toBeDefined();
+					debug(
+						`Access token is ${res.body.access_token ? 'defined' : 'missing'}.`,
+					);
+					debug(
+						`Refresh token is ${res.body.refresh_token ? 'defined' : 'missing'}.`,
+					);
+					expect(res.body.access_token).toBeDefined();
 				});
 		});
 
@@ -93,7 +100,7 @@ describe('auth routes/controllers', () => {
 				.set({ refreshtoken: tokens[0] })
 				.expect(200)
 				.expect(function (res) {
-					debug(res.body);
+					debug(`Access token is ${res.body.token ? 'defined' : 'missing'}.`);
 					expect(res.body.token).toBeDefined();
 				});
 		});
@@ -120,8 +127,9 @@ describe('auth routes/controllers', () => {
 				.expect(401)
 				.expect(async function (res) {
 					const tokenCheck = await Token.find({});
-					debug(tokenCheck);
-					debug(initialTokenCount);
+					debug(
+						`Token has ${tokenCheck.length < initialTokenCount ? '' : 'not'} been removed from database.`,
+					);
 					expect(tokenCheck.length).toBeLessThan(initialTokenCount);
 				});
 		});
@@ -145,8 +153,9 @@ describe('auth routes/controllers', () => {
 				.set({ refreshtoken: tokens[0] })
 				.expect(async function (res) {
 					const tokenCheck = await Token.find({});
-					debug(tokenCheck);
-					debug(initialTokenCount);
+					debug(
+						`Token has${tokenCheck.length < initialTokenCount ? '' : 'not'} been removed from database.`,
+					);
 					expect(tokenCheck.length).toBeLessThan(initialTokenCount);
 				});
 		});

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
+const debug = require('debug')('test:server');
 
 async function initializeMongoServer() {
 	const mongoServer = await MongoMemoryServer.create();
@@ -16,7 +17,7 @@ async function initializeMongoServer() {
 	});
 
 	mongoose.connection.once('open', () => {
-		console.log(`MongoDB successfully connected to ${db}`);
+		debug(`MongoDB successfully connected to ${db}`);
 	});
 }
 

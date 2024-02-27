@@ -3,7 +3,7 @@ const request = require('supertest');
 const initializeMongoServer = require('../mongo-test-config');
 const createDocs = require('../populate-db');
 const clearDocs = require('../clear-db');
-const debug = require('debug')('test');
+const debug = require('debug')('test:messages');
 
 describe('message routes/controllers', () => {
 	let users;

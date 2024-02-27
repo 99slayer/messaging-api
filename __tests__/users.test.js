@@ -3,7 +3,9 @@ const request = require('supertest');
 const initializeMongoServer = require('../mongo-test-config');
 const createDocs = require('../populate-db');
 const clearDocs = require('../clear-db');
-const debug = require('debug')('test');
+const debug = require('debug')('test:users');
+const User = require('../models/user');
+const Chat = require('../models/chat');
 
 const testUser1 = {
 	username: 'NinjaGuy49',
@@ -19,6 +21,7 @@ const testUser1 = {
 
 describe('user routes/controllers', () => {
 	let users;
+	let chats;
 
 	beforeAll(async () => {
 		await initializeMongoServer();
@@ -27,6 +30,7 @@ describe('user routes/controllers', () => {
 	async function setup() {
 		const docs = await createDocs();
 		users = docs.users;
+		chats = docs.chats;
 	}
 
 	async function teardown() {
@@ -50,7 +54,7 @@ describe('user routes/controllers', () => {
 			return request(app).get('/test/users').expect('Content-Type', /json/);
 		});
 
-		test('response body check', () => {
+		test('response body removed', () => {
 			return request(app)
 				.get('/test/users')
 				.then((res) => {
@@ -81,7 +85,7 @@ describe('user routes/controllers', () => {
 				.expect(200);
 		});
 
-		test('response body check', () => {
+		test('response body removed', () => {
 			return request(app)
 				.get(`/test/users/${users[0]._id}`)
 				.then((res) => {
@@ -244,9 +248,60 @@ describe('user routes/controllers', () => {
 						.get('/test/users')
 						.expect(200)
 						.expect(function (res) {
-							debug(initialCount);
-							debug(res.body.list.length);
+							debug(
+								`user ${res.body.list.length < initialCount ? 'has' : 'has not'} been removed from database.`,
+							);
+							debug(
+								`initial count: ${initialCount} / current count: ${res.body.list.length}`,
+							);
 							expect(res.body.list.length).toBeLessThan(initialCount);
+						});
+				});
+		});
+
+		test('should remove users from the chats they were in', () => {
+			let user = users[0];
+			const initialChatCount = user.chats.length;
+
+			return request(app)
+				.put(`/test/chats/${chats[2]._id}`)
+				.send({ update: 'add', userIds: [user._id] })
+				.expect(200)
+				.expect(async function (res) {
+					user = await User.findById(user._id);
+					expect(user.chats.length).toBeGreaterThan(initialChatCount);
+				})
+				.then(() => {
+					return request(app)
+						.delete(`/test/users/${user._id}`)
+						.expect(200)
+						.then(() => {
+							return request(app)
+								.get('/test/chats')
+								.expect(200)
+								.expect(async function (res) {
+									let usersRemoved = true;
+
+									async function checkChat(chatId) {
+										const chat = await Chat.findById(chatId);
+										const removed = !chat.users.includes(user._id);
+										debug(
+											`user id: <${user._id}> ${removed ? 'has' : 'has not'} been removed from chat user field: ${chat.users}`,
+										);
+										return removed;
+									}
+
+									for (let i = 0; i < user.chats.length; i++) {
+										const removed = await checkChat(user.chats[i]);
+
+										if (!removed) {
+											usersRemoved = false;
+											break;
+										}
+									}
+
+									expect(usersRemoved).toBe(true);
+								});
 						});
 				});
 		});
