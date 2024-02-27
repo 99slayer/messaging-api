@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/user');
+const Chat = require('../models/chat');
 
 const innerWhitespace = (string) => {
 	if (/\s/.test(string)) {
@@ -183,6 +184,20 @@ exports.user_update = [
 ];
 
 exports.user_delete = asyncHandler(async (req, res, next) => {
+	const user = await User.findById(req.params.userId);
+
+	async function removeUser(chatId) {
+		const updatedChat = await Chat.findOneAndUpdate(
+			{ _id: chatId },
+			{ $pull: { users: req.params.userId } },
+			{ new: true },
+		);
+	}
+
+	user.chats.forEach((chat) => {
+		removeUser(chat._id);
+	});
+
 	await User.findByIdAndDelete(req.params.userId);
 	res.sendStatus(200);
 });
