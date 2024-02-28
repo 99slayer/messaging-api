@@ -10,8 +10,8 @@ const Chat = require('../models/chat');
 
 const testUser1 = {
 	username: 'NinjaGuy49',
-	password: 'password',
-	'password-confirm': 'password',
+	password: 'p4ssword!',
+	'password-confirm': 'p4ssword!',
 	email: 'ninjaattack@fakemail.com',
 	nickname: 'secret_blade',
 	join_date: new Date(),
@@ -114,11 +114,11 @@ describe('user routes/controllers', () => {
 						.expect(200)
 						.expect(async function (res) {
 							const user = res.body.list[0];
-							expect(user.username).toEqual('NinjaGuy49');
-							expect(user.email).toEqual('ninjaattack@fakemail.com');
-							expect(await bcrypt.compare('password', user.password)).toBe(
-								true,
-							);
+							expect(user.username).toEqual(testUser1.username);
+							expect(user.email).toEqual(testUser1.email);
+							expect(
+								await bcrypt.compare(testUser1.password, user.password),
+							).toBe(true);
 							expect(await bcrypt.compare('banana', user.password)).not.toBe(
 								true,
 							);
@@ -210,7 +210,10 @@ describe('user routes/controllers', () => {
 
 			return request(app)
 				.put(`/test/users/${users[0]._id}`)
-				.send({ password: 'newpassword' })
+				.send({
+					password: 'newpassword1*',
+					'password-confirm': 'newpassword1*',
+				})
 				.expect(200)
 				.then(() => {
 					return request(app)
@@ -219,7 +222,10 @@ describe('user routes/controllers', () => {
 						.expect(async function (res) {
 							expect(res.body.list[0].password).not.toBe(initialPassword);
 							expect(
-								await bcrypt.compare('newpassword', res.body.list[0].password),
+								await bcrypt.compare(
+									'newpassword1*',
+									res.body.list[0].password,
+								),
 							).toBe(true);
 							expect(
 								await bcrypt.compare(

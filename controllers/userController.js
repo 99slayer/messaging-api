@@ -26,7 +26,10 @@ exports.user_create = [
 	body('username')
 		.trim()
 		.custom(innerWhitespace)
-		.isLength({ min: 1, max: 50 })
+		.withMessage('Username should not have any spaces.')
+		.notEmpty()
+		.isLength({ max: 50 })
+		.withMessage('Username should not be longer than 50 characters.')
 		.custom(async (value, { req }) => {
 			// Checks for duplicate usernames
 			const users = await User.find({ username: req.body.username });
@@ -39,12 +42,16 @@ exports.user_create = [
 		}),
 	body('password')
 		.trim()
+		.matches(/\d+/)
+		.withMessage('Password must contain at least one number.')
+		.matches(/[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]+/)
+		.withMessage('Password must contain at least one special character.')
 		.custom(innerWhitespace)
-		.isLength({ min: 8, max: 100 }),
+		.withMessage('Password cannot have any spaces.')
+		.isLength({ min: 8, max: 100 })
+		.withMessage('Password should be between 8-100 characters.'),
 	body('password-confirm')
 		.trim()
-		.custom(innerWhitespace)
-		.isLength({ min: 8, max: 100 })
 		.custom((value, { req }) => {
 			// Checks if passwords match.
 			if (value !== req.body.password) {
@@ -55,10 +62,17 @@ exports.user_create = [
 		}),
 	body('email')
 		.trim()
-		.custom(innerWhitespace)
 		.isEmail()
-		.isLength({ min: 8, max: 100 }),
-	body('nickname').trim().isLength({ min: 1, max: 50 }),
+		.withMessage('Invalid email.')
+		.isLength({ min: 10, max: 150 })
+		.withMessage('Email length is invalid.'),
+	body('nickname')
+		.if((value, { req }) => {
+			return req.body.nickname;
+		})
+		.trim()
+		.isLength({ min: 1, max: 50 })
+		.withMessage('Nickname must be between 1-50 characters long.'),
 
 	asyncHandler(async (req, res, next) => {
 		const errors = validationResult(req);
@@ -75,7 +89,7 @@ exports.user_create = [
 				username: req.body.username,
 				password: hashedPswd,
 				email: req.body.email,
-				nickname: req.body.nickname,
+				nickname: req.body.nickname ? req.body.nickname : req.body.username,
 				join_date: new Date(),
 			});
 
@@ -92,7 +106,10 @@ exports.user_update = [
 		})
 		.trim()
 		.custom(innerWhitespace)
-		.isLength({ min: 1, max: 50 })
+		.withMessage('Username should not have any spaces.')
+		.notEmpty()
+		.isLength({ max: 50 })
+		.withMessage('Username should not be longer than 50 characters.')
 		.custom(async (value, { req }) => {
 			// Checks for duplicate usernames
 			const users = await User.find({ username: req.body.username });
@@ -108,15 +125,26 @@ exports.user_update = [
 			return req.body.password;
 		})
 		.trim()
+		.matches(/\d+/)
+		.withMessage('Password must contain at least one number.')
+		.matches(/[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]+/)
+		.withMessage('Password must contain at least one special character.')
 		.custom(innerWhitespace)
-		.isLength({ min: 8, max: 100 }),
+		.withMessage('Password cannot have any spaces.')
+		.isLength({ min: 8, max: 100 })
+		.withMessage('Password should be between 8-100 characters.'),
 	body('password-confirm')
+		.custom((value, { req }) => {
+			if (req.body.password && !req.body['password-confirm']) {
+				throw new Error('Password confirmation field is missing.');
+			} else {
+				return true;
+			}
+		})
 		.if((value, { req }) => {
 			return req.body['password-confirm'];
 		})
 		.trim()
-		.custom(innerWhitespace)
-		.isLength({ min: 8, max: 100 })
 		.custom((value, { req }) => {
 			// Checks if passwords match.
 			if (value !== req.body.password) {
@@ -130,24 +158,24 @@ exports.user_update = [
 			return req.body.email;
 		})
 		.trim()
-		.custom(innerWhitespace)
 		.isEmail()
-		.isLength({ min: 8, max: 100 }),
+		.withMessage('Invalid email.')
+		.isLength({ min: 10, max: 150 })
+		.withMessage('Email length is invalid.'),
 	body('nickname')
 		.if((value, { req }) => {
 			return req.body.nickname;
 		})
 		.trim()
-		.isLength({ min: 1, max: 50 }),
-	body('profile_picture').if((value, { req }) => {
-		return req.body.profile_picture;
-	}),
+		.isLength({ min: 1, max: 50 })
+		.withMessage('Nickname must be between 1-50 characters long.'),
 	body('profile_text')
 		.if((value, { req }) => {
 			return req.body.profile_text;
 		})
 		.trim()
-		.isLength({ max: 500 }),
+		.isLength({ max: 500 })
+		.withMessage('Profile text exceeds character limit.'),
 
 	asyncHandler(async (req, res, next) => {
 		const errors = validationResult(req);
