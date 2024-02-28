@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 const Chat = require('../models/chat');
 
@@ -58,30 +59,29 @@ exports.user_create = [
 		.isEmail()
 		.isLength({ min: 8, max: 100 }),
 	body('nickname').trim().isLength({ min: 1, max: 50 }),
-	body('profile_picture'),
-	body('profile_text').trim().isLength({ max: 500 }),
 
 	asyncHandler(async (req, res, next) => {
 		const errors = validationResult(req);
 
-		if (!errors.isEmpty()) {
-			const messages = errors.array().map((err) => err.msg);
-			return res.status(400).send(messages);
-		}
+		bcrypt.hash(req.body.password, 10, async (err, hashedPswd) => {
+			if (err) throw err;
 
-		const user = new User({
-			username: req.body.username,
-			password: req.body.password,
-			email: req.body.email,
-			nickname: req.body.nickname,
-			profile_picture: req.body.profile_picture,
-			profile_text: req.body.profile_text,
-			join_date: new Date(),
-			chats: null,
+			if (!errors.isEmpty()) {
+				const messages = errors.array().map((err) => err.msg);
+				return res.status(400).send(messages);
+			}
+
+			const user = new User({
+				username: req.body.username,
+				password: hashedPswd,
+				email: req.body.email,
+				nickname: req.body.nickname,
+				join_date: new Date(),
+			});
+
+			await user.save();
+			res.sendStatus(200);
 		});
-
-		await user.save();
-		res.sendStatus(200);
 	}),
 ];
 
@@ -157,13 +157,17 @@ exports.user_update = [
 			return res.status(400).send(messages);
 		}
 
+		if (req.body.password) {
+			return next();
+		}
+
 		const originalUser = await User.findById(req.params.userId);
 
 		await User.findOneAndUpdate(
 			{ _id: req.params.userId },
 			{
 				username: req.body.username ? req.body.username : originalUser.username,
-				password: req.body.password ? req.body.password : originalUser.password,
+				password: originalUser.password,
 				email: req.body.email ? req.body.email : originalUser.email,
 				nickname: req.body.nickname ? req.body.nickname : originalUser.nickname,
 				profile_picture: req.body.profile_picture
@@ -180,6 +184,27 @@ exports.user_update = [
 		);
 
 		res.sendStatus(200);
+	}),
+
+	asyncHandler(async (req, res, next) => {
+		const errors = validationResult(req);
+
+		if (!errors.isEmpty()) {
+			const messages = errors.array().map((err) => err.msg);
+			return res.status(400).send(messages);
+		}
+
+		bcrypt.hash(req.body.password, 10, async (err, hashedPswd) => {
+			if (err) throw err;
+
+			const updatedUser = await User.findOneAndUpdate(
+				{ _id: req.params.userId },
+				{ password: hashedPswd },
+				{ new: true },
+			);
+
+			res.sendStatus(200);
+		});
 	}),
 ];
 

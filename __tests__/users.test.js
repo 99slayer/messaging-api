@@ -4,6 +4,7 @@ const initializeMongoServer = require('../mongo-test-config');
 const createDocs = require('../populate-db');
 const clearDocs = require('../clear-db');
 const debug = require('debug')('test:users');
+const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 const Chat = require('../models/chat');
 
@@ -13,10 +14,7 @@ const testUser1 = {
 	'password-confirm': 'password',
 	email: 'ninjaattack@fakemail.com',
 	nickname: 'secret_blade',
-	profile_picture: null,
-	profile_text: 'You wont see me coming...',
 	join_date: new Date(),
-	chats: null,
 };
 
 describe('user routes/controllers', () => {
@@ -114,11 +112,15 @@ describe('user routes/controllers', () => {
 					return request(app)
 						.get('/test/users')
 						.expect(200)
-						.expect(function (res) {
-							expect(res.body.list[0].username).toEqual('NinjaGuy49');
-							expect(res.body.list[0].password).toEqual('password');
-							expect(res.body.list[0].email).toEqual(
-								'ninjaattack@fakemail.com',
+						.expect(async function (res) {
+							const user = res.body.list[0];
+							expect(user.username).toEqual('NinjaGuy49');
+							expect(user.email).toEqual('ninjaattack@fakemail.com');
+							expect(await bcrypt.compare('password', user.password)).toBe(
+								true,
+							);
+							expect(await bcrypt.compare('banana', user.password)).not.toBe(
+								true,
 							);
 						});
 				});
@@ -199,6 +201,32 @@ describe('user routes/controllers', () => {
 						.expect(function (res) {
 							expect(res.body.list[0].email).toEqual('newemail@fakemail.com');
 							expect(res.body.list[0].nickname).toEqual('super_secret_blade');
+						});
+				});
+		});
+
+		test('should change user password', () => {
+			const initialPassword = users[0].password;
+
+			return request(app)
+				.put(`/test/users/${users[0]._id}`)
+				.send({ password: 'newpassword' })
+				.expect(200)
+				.then(() => {
+					return request(app)
+						.get('/test/users')
+						.expect(200)
+						.expect(async function (res) {
+							expect(res.body.list[0].password).not.toBe(initialPassword);
+							expect(
+								await bcrypt.compare('newpassword', res.body.list[0].password),
+							).toBe(true);
+							expect(
+								await bcrypt.compare(
+									'newpppassword',
+									res.body.list[0].password,
+								),
+							).not.toBe(true);
 						});
 				});
 		});
