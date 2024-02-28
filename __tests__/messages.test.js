@@ -140,7 +140,7 @@ describe('message routes/controllers', () => {
 						.get(`/test/${chats[0]._id}/messages`)
 						.expect(200)
 						.expect(function (res) {
-							debug(res.body.list[0]);
+							debug(`TEXT HAS BEEN EDITED: ${res.body.list[0].edited}`);
 							expect(res.body.list[0].text).toBe('updated text');
 							expect(res.body.list[0].edited).toBe(true);
 						});
@@ -158,26 +158,25 @@ describe('message routes/controllers', () => {
 						.get(`/test/${chats[0]._id}/messages`)
 						.expect(200)
 						.expect(function (res) {
-							debug(res.body.list[0]);
+							debug(`TEXT HAS BEEN EDITED: ${res.body.list[0].edited}`);
 							expect(res.body.list[0].text).toBe('Hi.');
 							expect(res.body.list[0].edited).toBe(false);
 						});
 				});
 		});
 
-		// tests duplicate text input
-		test('updating text with duplicate text should return status code 400', () => {
+		test('updating text with duplicate text should return status code 200 and do nothing', () => {
 			return request(app)
 				.put(`/test/${chats[0]._id}/messages/${chats[0].messages[0]._id}`)
 				.type('json')
 				.send({ text: 'Hi.' })
-				.expect(400)
+				.expect(200)
 				.then(() => {
 					return request(app)
 						.get(`/test/${chats[0]._id}/messages`)
 						.expect(200)
 						.expect(function (res) {
-							debug(res.body.list[0]);
+							debug(`TEXT HAS BEEN EDITED: ${res.body.list[0].edited}`);
 							expect(res.body.list[0].text).toBe('Hi.');
 							expect(res.body.list[0].edited).toBe(false);
 						});

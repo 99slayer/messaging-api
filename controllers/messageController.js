@@ -9,13 +9,19 @@ exports.message_list = asyncHandler(async (req, res, next) => {
 });
 
 exports.message_create = [
-	body('text').trim().isLength({ min: 1, max: 900 }),
+	body('text')
+		.trim()
+		.notEmpty()
+		.withMessage('Messages cannot be empty.')
+		.isLength({ max: 900 })
+		.withMessage('Message exceeds character limit.'),
 
 	asyncHandler(async (req, res, next) => {
 		const errors = validationResult(req);
 
 		if (!errors.isEmpty()) {
-			return res.sendStatus(400);
+			const messages = errors.array().map((err) => err.msg);
+			return res.status(400).send(messages);
 		}
 
 		const message = {
@@ -40,7 +46,10 @@ exports.message_create = [
 exports.message_update = [
 	body('text')
 		.trim()
-		.isLength({ min: 1, max: 900 })
+		.notEmpty()
+		.withMessage('Messages cannot be empty.')
+		.isLength({ max: 900 })
+		.withMessage('Message exceeds character limit.')
 		.custom(async (value, { req }) => {
 			const chat = await Chat.findById(req.params.chatId).populate('messages');
 			const message = chat.messages.id(req.params.messageId);
@@ -55,8 +64,18 @@ exports.message_update = [
 	asyncHandler(async (req, res, next) => {
 		const errors = validationResult(req);
 
+		if (
+			errors
+				.array()
+				.map((error) => error.msg)
+				.includes('Duplicate text will not be saved.')
+		) {
+			return res.sendStatus(200);
+		}
+
 		if (!errors.isEmpty()) {
-			return res.sendStatus(400);
+			const messages = errors.array().map((err) => err.msg);
+			return res.status(400).send(messages);
 		}
 
 		const updatedChat = await Chat.findOneAndUpdate(
