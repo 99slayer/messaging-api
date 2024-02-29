@@ -1,11 +1,20 @@
 const asyncHandler = require('express-async-handler');
 const { body, validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 const auth = require('../auth');
 
 exports.auth_login = [
-	body('username').trim().isLength({ min: 1, max: 50 }),
-	body('password').trim().isLength({ min: 8 }),
+	body('username')
+		.trim()
+		.notEmpty()
+		.withMessage('Username field cannot be empty.')
+		.isLength({ max: 50 }),
+	body('password')
+		.trim()
+		.notEmpty()
+		.withMessage('Password field cannot be empty.')
+		.isLength({ min: 8, max: 100 }),
 
 	asyncHandler(async (req, res, next) => {
 		const errors = validationResult(req);
@@ -18,7 +27,9 @@ exports.auth_login = [
 		const user = await User.findOne({ username: req.body.username });
 
 		if (!user) return res.sendStatus(404);
-		if (user.password !== req.body.password) return res.sendStatus(400);
+		if (!(await bcrypt.compare(req.body.password, user.password))) {
+			return res.sendStatus(400);
+		}
 
 		res.cookie('refresh_token', auth.generateRefreshToken(user), {
 			secure: process.env.NODE_ENV !== 'development',
