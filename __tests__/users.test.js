@@ -52,7 +52,7 @@ describe('user routes/controllers', () => {
 			return request(app).get('/test/users').expect('Content-Type', /json/);
 		});
 
-		test('response body removed', () => {
+		test('response body should contain data', () => {
 			return request(app)
 				.get('/test/users')
 				.then((res) => {
@@ -83,11 +83,10 @@ describe('user routes/controllers', () => {
 				.expect(200);
 		});
 
-		test('response body removed', () => {
+		test('response body should contain data', () => {
 			return request(app)
 				.get(`/test/users/${users[0]._id}`)
 				.then((res) => {
-					debug(res.body);
 					expect(res.body.user).toBeDefined();
 					expect(res.body.user.username).toBeDefined();
 					expect(res.body.user.password).toBeDefined();
@@ -102,12 +101,18 @@ describe('user routes/controllers', () => {
 			await teardown();
 		});
 
-		test('new document should be in database', () => {
+		test('should return access token and a new user should be in the database', () => {
 			return request(app)
 				.post('/test/users')
 				.type('form')
 				.send(testUser1)
 				.expect(200)
+				.expect(function (res) {
+					debug(
+						`access token is${res.body.access_token ? '' : ' not'} defined.`,
+					);
+					expect(res.body.access_token).toBeDefined();
+				})
 				.then(() => {
 					return request(app)
 						.get('/test/users')

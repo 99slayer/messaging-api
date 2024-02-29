@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 const Chat = require('../models/chat');
+const auth = require('../auth');
 
 const innerWhitespace = (string) => {
 	if (/\s/.test(string)) {
@@ -94,7 +95,13 @@ exports.user_create = [
 			});
 
 			await user.save();
-			res.sendStatus(200);
+			res.cookie('refresh_token', auth.generateRefreshToken(user), {
+				secure: process.env.NODE_ENV !== 'development',
+				httpOnly: true,
+			});
+			return res.status(200).send({
+				access_token: auth.generateToken(user),
+			});
 		});
 	}),
 ];
@@ -247,9 +254,11 @@ exports.user_delete = asyncHandler(async (req, res, next) => {
 		);
 	}
 
-	user.chats.forEach((chat) => {
-		removeUser(chat._id);
-	});
+	if (user.chats.length > 0) {
+		user.chats.forEach((chat) => {
+			removeUser(chat._id);
+		});
+	}
 
 	await User.findByIdAndDelete(req.params.userId);
 	res.sendStatus(200);
