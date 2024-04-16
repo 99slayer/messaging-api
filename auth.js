@@ -14,8 +14,9 @@ function verify(req, res, next) {
 	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, authData) => {
 		if (err) {
 			debug(err);
-			return res.sendStatus(401);
+			return res.status(401).send(err.message);
 		} else {
+			res.locals.user = authData;
 			next();
 		}
 	});
@@ -23,16 +24,13 @@ function verify(req, res, next) {
 
 // Attempts to renew user access using a refresh token.
 async function refresh(req, res, next) {
-	if (req.headers.refreshtoken == null) return res.sendStatus(400);
+	if (req.cookies.refresh_token == null) return res.sendStatus(400);
 
-	const tokens = await Token.find({});
-	const authHeader = req.headers.refreshtoken;
-	const token = authHeader.split('=')[1];
-	const tokenList = [];
-	tokens.forEach((x) => tokenList.push(x.refresh_token));
+	const token = req.cookies.refresh_token;
+	const tokenCheck = await Token.find({ refresh_token: token });
 
-	// Refresh token is not valid
-	if (!tokenList.includes(token)) return res.sendStatus(401);
+	// Refresh token is invalid.
+	if (!tokenCheck) return res.sendStatus(401);
 
 	jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, async (err, authData) => {
 		if (err) {
@@ -46,22 +44,37 @@ async function refresh(req, res, next) {
 
 			return res.sendStatus(401);
 		} else {
-			const user = authData.user;
-			const accessToken = generateToken(user);
-			return res.json({ token: accessToken });
+			const accessToken = generateToken(authData);
+			return res.json({ access_token: accessToken });
 		}
 	});
 }
 
 function generateToken(user) {
-	return jwt.sign({ user }, process.env.ACCESS_TOKEN_SECRET, {
-		expiresIn: '30s',
-	});
+	return jwt.sign(
+		{
+			_id: user._id,
+			username: user.username,
+			email: user.email,
+			nickname: user.nickname,
+		},
+		process.env.ACCESS_TOKEN_SECRET,
+		{
+			expiresIn: '30s',
+		},
+	);
 }
 
 async function generateRefreshToken(user) {
-	const token = jwt.sign({ user }, process.env.REFRESH_TOKEN_SECRET);
-
+	const token = jwt.sign(
+		{
+			_id: user._id,
+			username: user.username,
+			email: user.email,
+			nickname: user.nickname,
+		},
+		process.env.REFRESH_TOKEN_SECRET,
+	);
 	const refreshToken = new Token({
 		refresh_token: token,
 	});
@@ -72,8 +85,7 @@ async function generateRefreshToken(user) {
 }
 
 async function deleteRefreshToken(req, res, next) {
-	const authHeader = req.headers.refreshtoken;
-	const token = authHeader.split('=')[1];
+	const token = req.cookies.refresh_token;
 
 	if (token == null) return res.sendStatus(400);
 
@@ -83,6 +95,7 @@ async function deleteRefreshToken(req, res, next) {
 
 	if (removedToken == null) return res.sendStatus(404);
 
+	res.clearCookie('refresh_token');
 	return res.sendStatus(200);
 }
 
