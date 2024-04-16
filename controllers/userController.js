@@ -1,9 +1,18 @@
 const asyncHandler = require('express-async-handler');
 const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
 const User = require('../models/user');
 const Chat = require('../models/chat');
 const auth = require('../auth');
+const { getValidationMessages: gvm } = require('../util');
+
+const storage = multer.memoryStorage();
+const MB = 1048576;
+const upload = multer({
+	storage,
+	limits: { fileSize: MB * 6 },
+});
 
 const innerWhitespace = (string) => {
 	if (/\s/.test(string)) {
@@ -77,29 +86,33 @@ exports.user_create = [
 
 	asyncHandler(async (req, res, next) => {
 		const errors = validationResult(req);
+		const returnData = {
+			validation: gvm(errors),
+		};
+
+		if (!errors.isEmpty()) return res.status(400).send(returnData);
 
 		bcrypt.hash(req.body.password, 10, async (err, hashedPswd) => {
 			if (err) throw err;
-
-			if (!errors.isEmpty()) {
-				const messages = errors.array().map((err) => err.msg);
-				return res.status(400).send(messages);
-			}
 
 			const user = new User({
 				username: req.body.username,
 				password: hashedPswd,
 				email: req.body.email,
-				nickname: req.body.nickname ? req.body.nickname : req.body.username,
+				nickname: req.body.nickname ? req.body.nickname : null,
 				join_date: new Date(),
 			});
 
 			await user.save();
-			res.cookie('refresh_token', auth.generateRefreshToken(user), {
+			res.cookie('refresh_token', await auth.generateRefreshToken(user), {
 				secure: process.env.NODE_ENV !== 'development',
 				httpOnly: true,
 			});
+
 			return res.status(200).send({
+				user_id: user.id,
+				username: user.username,
+				user_nickname: user.nickname,
 				access_token: auth.generateToken(user),
 			});
 		});
@@ -107,6 +120,14 @@ exports.user_create = [
 ];
 
 exports.user_update = [
+	upload.single('file'),
+
+	asyncHandler(async (req, res, next) => {
+		const input = JSON.parse(req.body.json);
+		req.body = input;
+		next();
+	}),
+
 	body('username')
 		.if((value, { req }) => {
 			return req.body.username;
@@ -176,9 +197,9 @@ exports.user_update = [
 		.trim()
 		.isLength({ min: 1, max: 50 })
 		.withMessage('Nickname must be between 1-50 characters long.'),
-	body('profile_text')
+	body('profile-text')
 		.if((value, { req }) => {
-			return req.body.profile_text;
+			return req.body['profile-text'];
 		})
 		.trim()
 		.isLength({ max: 500 })
@@ -186,11 +207,11 @@ exports.user_update = [
 
 	asyncHandler(async (req, res, next) => {
 		const errors = validationResult(req);
+		const returnData = {
+			validation: gvm(errors),
+		};
 
-		if (!errors.isEmpty()) {
-			const messages = errors.array().map((err) => err.msg);
-			return res.status(400).send(messages);
-		}
+		if (!errors.isEmpty()) return res.status(400).send(returnData);
 
 		if (req.body.password) {
 			return next();
@@ -205,11 +226,11 @@ exports.user_update = [
 				password: originalUser.password,
 				email: req.body.email ? req.body.email : originalUser.email,
 				nickname: req.body.nickname ? req.body.nickname : originalUser.nickname,
-				profile_picture: req.body.profile_picture
-					? req.body.profile_picture
+				profile_picture: req.file
+					? req.file.buffer
 					: originalUser.profile_picture,
-				profile_text: req.body.profile_text
-					? req.body.profile_text
+				profile_text: req.body['profile-text']
+					? req.body['profile-text']
 					: originalUser.profile_text,
 				join_date: originalUser.join_date,
 				chats: originalUser.chats,
@@ -223,11 +244,11 @@ exports.user_update = [
 
 	asyncHandler(async (req, res, next) => {
 		const errors = validationResult(req);
+		const returnData = {
+			validation: gvm(errors),
+		};
 
-		if (!errors.isEmpty()) {
-			const messages = errors.array().map((err) => err.msg);
-			return res.status(400).send(messages);
-		}
+		if (!errors.isEmpty()) return res.status(400).send(returnData);
 
 		bcrypt.hash(req.body.password, 10, async (err, hashedPswd) => {
 			if (err) throw err;

@@ -1,14 +1,33 @@
 const asyncHandler = require('express-async-handler');
-const Chat = require('../models/chat');
 const { body, validationResult } = require('express-validator');
+const multer = require('multer');
+const Chat = require('../models/chat');
+
+const storage = multer.memoryStorage();
+const MB = 1048576;
+const upload = multer({
+	storage,
+	limits: { fileSize: MB * 6 },
+});
 
 exports.message_list = asyncHandler(async (req, res, next) => {
-	const chat = await Chat.findById(req.params.chatId);
+	const chat = await Chat.findById(req.params.chatId).populate({
+		path: 'messages',
+		populate: [{ path: 'user' }],
+	});
 	const list = chat.messages;
 	res.json({ list });
 });
 
 exports.message_create = [
+	upload.single('file'),
+
+	asyncHandler(async (req, res, next) => {
+		const input = JSON.parse(req.body.json);
+		req.body = input;
+		next();
+	}),
+
 	body('text')
 		.trim()
 		.notEmpty()
@@ -17,6 +36,10 @@ exports.message_create = [
 		.withMessage('Message exceeds character limit.'),
 
 	asyncHandler(async (req, res, next) => {
+		if (!req.file && !req.body.text) {
+			return;
+		}
+
 		const errors = validationResult(req);
 
 		if (!errors.isEmpty()) {
@@ -25,9 +48,10 @@ exports.message_create = [
 		}
 
 		const message = {
-			user: req.body.userId,
+			user: res.locals.user._id,
 			timestamp: new Date(),
-			text: req.body.text,
+			text: req.body.text ? req.body.text : null,
+			image: req.file ? req.file.buffer : null,
 		};
 
 		const updatedChat = await Chat.findOneAndUpdate(
