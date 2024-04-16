@@ -21,4 +21,12 @@ UserSchema.virtual('join_date_formatted').get(function () {
 	return dt.toLocaleString(DateTime.DATE_SHORT);
 });
 
+UserSchema.virtual('pfp_converted').get(function () {
+	if (this.profile_picture === null) {
+		return null;
+	} else {
+		return `data:image/jpeg;base64,${this.profile_picture.toString('base64')}`;
+	}
+});
+
 module.exports = mongoose.model('User', UserSchema);
