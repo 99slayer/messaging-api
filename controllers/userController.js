@@ -206,6 +206,7 @@ exports.user_update = [
 		.withMessage('Profile text exceeds character limit.'),
 
 	asyncHandler(async (req, res, next) => {
+		let pswd = false;
 		const errors = validationResult(req);
 		const returnData = {
 			validation: gvm(errors),
@@ -213,49 +214,40 @@ exports.user_update = [
 
 		if (!errors.isEmpty()) return res.status(400).send(returnData);
 
-		if (req.body.password) {
-			return next();
+		if (
+			!!req.body.password &&
+			!!req.body['password-confirm'] &&
+			!returnData.validation.password
+		) {
+			pswd = true;
 		}
 
 		const originalUser = await User.findById(req.params.userId);
 
-		await User.findOneAndUpdate(
-			{ _id: req.params.userId },
-			{
-				username: req.body.username ? req.body.username : originalUser.username,
-				password: originalUser.password,
-				email: req.body.email ? req.body.email : originalUser.email,
-				nickname: req.body.nickname ? req.body.nickname : originalUser.nickname,
-				profile_picture: req.file
-					? req.file.buffer
-					: originalUser.profile_picture,
-				profile_text: req.body['profile-text']
-					? req.body['profile-text']
-					: originalUser.profile_text,
-				join_date: originalUser.join_date,
-				chats: originalUser.chats,
-				_id: req.params.id,
-			},
-			{ new: true },
-		);
-
-		res.sendStatus(200);
-	}),
-
-	asyncHandler(async (req, res, next) => {
-		const errors = validationResult(req);
-		const returnData = {
-			validation: gvm(errors),
-		};
-
-		if (!errors.isEmpty()) return res.status(400).send(returnData);
-
 		bcrypt.hash(req.body.password, 10, async (err, hashedPswd) => {
 			if (err) throw err;
 
-			const updatedUser = await User.findOneAndUpdate(
+			await User.findOneAndUpdate(
 				{ _id: req.params.userId },
-				{ password: hashedPswd },
+				{
+					username: req.body.username
+						? req.body.username
+						: originalUser.username,
+					password: pswd ? hashedPswd : originalUser.password,
+					email: req.body.email ? req.body.email : originalUser.email,
+					nickname: req.body.nickname
+						? req.body.nickname
+						: originalUser.nickname,
+					profile_picture: req.file
+						? req.file.buffer
+						: originalUser.profile_picture,
+					profile_text: req.body['profile-text']
+						? req.body['profile-text']
+						: originalUser.profile_text,
+					join_date: originalUser.join_date,
+					chats: originalUser.chats,
+					_id: req.params.id,
+				},
 				{ new: true },
 			);
 
