@@ -12,6 +12,7 @@ const UserSchema = new Schema(
 		profile_text: { type: String, default: null },
 		join_date: { type: Date, required: true },
 		chats: [{ type: Schema.Types.ObjectId, ref: 'Chat' }],
+		settings: { type: Map, of: String },
 	},
 	{ toJSON: { virtuals: true } },
 );

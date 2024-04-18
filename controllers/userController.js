@@ -224,7 +224,7 @@ exports.user_update = [
 
 		const originalUser = await User.findById(req.params.userId);
 
-		bcrypt.hash(req.body.password, 10, async (err, hashedPswd) => {
+		bcrypt.hash(req.body.password || 'foo', 10, async (err, hashedPswd) => {
 			if (err) throw err;
 
 			await User.findOneAndUpdate(
@@ -246,6 +246,9 @@ exports.user_update = [
 						: originalUser.profile_text,
 					join_date: originalUser.join_date,
 					chats: originalUser.chats,
+					settings: {
+						theme: req.body.theme ? req.body.theme : originalUser.theme,
+					},
 					_id: req.params.id,
 				},
 				{ new: true },
