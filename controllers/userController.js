@@ -254,7 +254,10 @@ exports.user_update = [
 				{ new: true },
 			);
 
-			res.sendStatus(200);
+			return res.status(200).send({
+				username: req.body.username ? req.body.username : null,
+				user_nickname: req.body.nickname ? req.body.nickname : null,
+			});
 		});
 	}),
 ];
