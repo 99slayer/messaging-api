@@ -21,6 +21,9 @@ function updateSwitch(req, res, next) {
 // AUTH ROUTES
 router.post('/auth/login', authController.auth_login);
 router.get('/auth/logout', auth.deleteRefreshToken);
+router.get('/auth/verify', auth.verify, (req, res, next) => {
+	return res.status(200).send('verified');
+});
 router.get('/auth/token', auth.refresh);
 
 // USER ROUTES
@@ -28,6 +31,11 @@ router.get('/users', auth.verify, userController.user_list);
 router.post('/users', userController.user_create);
 router.get('/users/:userId', auth.verify, userController.user_detail);
 router.put('/users/:userId', auth.verify, userController.user_update);
+router.put(
+	'/users/:userId/chats/:chatId',
+	auth.verify,
+	userController.user_change_chat,
+);
 router.delete('/users/:userId', auth.verify, userController.user_delete);
 
 // CHAT ROUTES
@@ -41,7 +49,11 @@ router.put(
 	chatController.chat_add_users,
 );
 router.put('/chats/:chatId', auth.verify, chatController.chat_remove_user);
-router.delete('/chats/:chatId', auth.verify, chatController.chat_delete);
+router.delete(
+	'/users/:userId/chats/:chatId',
+	auth.verify,
+	chatController.chat_delete,
+);
 
 // MESSAGE ROUTES
 router.get('/:chatId/messages', auth.verify, messageController.message_list);
