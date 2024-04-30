@@ -9,12 +9,12 @@ function verify(req, res, next) {
 	const authHeader = req.headers.authorization;
 	const token = authHeader && authHeader.split(' ')[1];
 
-	if (token == null) return res.sendStatus(400);
+	if (!token) return res.sendStatus(400);
 
 	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, authData) => {
 		if (err) {
 			debug(err);
-			return res.status(401).send(err.message);
+			return res.status(401).send(err.message || 'Unauthorized');
 		} else {
 			res.locals.user = authData;
 			next();
@@ -24,7 +24,7 @@ function verify(req, res, next) {
 
 // Attempts to renew user access using a refresh token.
 async function refresh(req, res, next) {
-	if (req.cookies.refresh_token == null) return res.sendStatus(400);
+	if (!req.cookies.refresh_token) return res.sendStatus(400);
 
 	const token = req.cookies.refresh_token;
 	const tokenCheck = await Token.find({ refresh_token: token });
@@ -45,7 +45,7 @@ async function refresh(req, res, next) {
 			return res.sendStatus(401);
 		} else {
 			const accessToken = generateToken(authData);
-			return res.json({ access_token: accessToken });
+			return res.status(200).json({ access_token: accessToken });
 		}
 	});
 }
