@@ -99,7 +99,7 @@ exports.user_create = [
 				username: req.body.username,
 				password: hashedPswd,
 				email: req.body.email,
-				nickname: req.body.nickname ? req.body.nickname : null,
+				nickname: req.body.nickname ? req.body.nickname : '',
 				join_date: new Date(),
 			});
 
@@ -255,12 +255,24 @@ exports.user_update = [
 			);
 
 			return res.status(200).send({
-				username: req.body.username ? req.body.username : null,
-				user_nickname: req.body.nickname ? req.body.nickname : null,
+				username: req.body.username ? req.body.username : '',
+				user_nickname: req.body.nickname ? req.body.nickname : '',
 			});
 		});
 	}),
 ];
+
+exports.user_change_chat = asyncHandler(async (req, res, next) => {
+	await User.findOneAndUpdate(
+		{ _id: res.locals.user._id },
+		{
+			current_chat: req.params.chatId,
+		},
+		{ new: true },
+	);
+
+	return res.sendStatus(200);
+});
 
 exports.user_delete = asyncHandler(async (req, res, next) => {
 	const user = await User.findById(req.params.userId);

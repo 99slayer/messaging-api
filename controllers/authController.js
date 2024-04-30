@@ -47,8 +47,11 @@ exports.auth_login = [
 			user_id: user.id,
 			username: user.username,
 			user_nickname: user.nickname,
-			user_theme: user.get('settings.theme'),
+			user_theme: user.get('settings.theme')
+				? user.get('settings.theme')
+				: 'theme-default',
 			access_token: auth.generateToken(user),
+			current_chat_id: user.current_chat,
 		});
 	}),
 ];

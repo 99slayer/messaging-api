@@ -43,7 +43,7 @@ exports.chat_create = asyncHandler(async (req, res, next) => {
 		addChat(id);
 	});
 
-	res.sendStatus(200);
+	res.status(200).send({ chatId: chat._id });
 });
 
 exports.chat_add_users = asyncHandler(async (req, res, next) => {
@@ -80,13 +80,13 @@ exports.chat_remove_user = asyncHandler(async (req, res, next) => {
 
 	if (chat.chat_owner === req.body.userId) return;
 
-	const user = await User.findOneAndUpdate(
+	await User.findOneAndUpdate(
 		{ _id: req.body.userId },
 		{ $pull: { chats: req.params.chatId } },
 		{ new: true },
 	);
 
-	const updatedChat = await Chat.findOneAndUpdate(
+	await Chat.findOneAndUpdate(
 		{ _id: req.params.chatId },
 		{ $pull: { users: req.body.userId } },
 		{ new: true },
@@ -101,6 +101,14 @@ exports.chat_delete = asyncHandler(async (req, res, next) => {
 	if (res.locals.user._id !== chat.chat_owner.toString()) {
 		return res.sendStatus(403);
 	}
+
+	await User.findById(req.params.userId);
+
+	await User.findOneAndUpdate(
+		{ _id: req.params.userId },
+		{ $pull: { chats: req.params.chatId } },
+		{ new: true },
+	);
 
 	await Chat.findByIdAndDelete(req.params.chatId);
 
