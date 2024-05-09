@@ -3,16 +3,26 @@ const Chat = require('../models/chat');
 const User = require('../models/user');
 
 exports.chat_list = asyncHandler(async (req, res, next) => {
-	const user = await User.findById(res.locals.user._id).populate({
-		path: 'chats',
-		populate: [{ path: 'users' }],
-	});
-	const chats = user.chats;
+	const chats = [];
+	const user = await User.findById(res.locals.user._id, 'chats');
+
+	for (const id of user.chats) {
+		const chat = await Chat.findById(id, 'chat_name chat_owner users');
+		chats.push(chat);
+	}
+
 	res.json({ chats });
 });
 
 exports.chat_detail = asyncHandler(async (req, res, next) => {
-	const chat = await Chat.findById(req.params.chatId);
+	const chat = await Chat.findById(
+		req.params.chatId,
+		'-most_recent_update -start_date',
+	).populate({
+		path: 'users',
+		select: 'username nickname profile_picture chats',
+	});
+
 	res.json({ chat });
 });
 
@@ -97,18 +107,23 @@ exports.chat_remove_user = asyncHandler(async (req, res, next) => {
 
 exports.chat_delete = asyncHandler(async (req, res, next) => {
 	const chat = await Chat.findById(req.params.chatId);
+	const userList = chat.users;
 
 	if (res.locals.user._id !== chat.chat_owner.toString()) {
 		return res.sendStatus(403);
 	}
 
-	await User.findById(req.params.userId);
+	async function removeChat(user) {
+		await User.findOneAndUpdate(
+			{ _id: user._id },
+			{ $pull: { chats: req.params.chatId } },
+			{ new: true },
+		);
+	}
 
-	await User.findOneAndUpdate(
-		{ _id: req.params.userId },
-		{ $pull: { chats: req.params.chatId } },
-		{ new: true },
-	);
+	for (const user of userList) {
+		removeChat(user);
+	}
 
 	await Chat.findByIdAndDelete(req.params.chatId);
 
