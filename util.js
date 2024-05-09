@@ -10,6 +10,6 @@ exports.getValidationMessages = function (result) {
 			msgs[error.path].push(error.msg);
 		}
 	}
-	console.log(msgs);
+
 	return msgs;
 };

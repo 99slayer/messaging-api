@@ -23,12 +23,12 @@ const innerWhitespace = (string) => {
 };
 
 exports.user_list = asyncHandler(async (req, res, next) => {
-	const list = await User.find({});
+	const list = await User.find({}, 'username nickname profile_picture');
 	res.json({ list });
 });
 
 exports.user_detail = asyncHandler(async (req, res, next) => {
-	const user = await User.findById(req.params.userId);
+	const user = await User.findById(req.params.userId, '-password');
 	res.json({ user });
 });
 
