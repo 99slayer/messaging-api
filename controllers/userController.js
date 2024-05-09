@@ -202,7 +202,7 @@ exports.user_update = [
 			return req.body['profile-text'];
 		})
 		.trim()
-		.isLength({ max: 500 })
+		.isLength({ max: 1000 })
 		.withMessage('Profile text exceeds character limit.'),
 
 	asyncHandler(async (req, res, next) => {
@@ -239,7 +239,7 @@ exports.user_update = [
 						? req.body.nickname
 						: originalUser.nickname,
 					profile_picture: req.file
-						? req.file.buffer
+						? `data:image/jpeg;base64,${req.file.buffer.toString('base64')}`
 						: originalUser.profile_picture,
 					profile_text: req.body['profile-text']
 						? req.body['profile-text']

@@ -30,8 +30,6 @@ exports.message_create = [
 
 	body('text')
 		.trim()
-		.notEmpty()
-		.withMessage('Messages cannot be empty.')
 		.isLength({ max: 900 })
 		.withMessage('Message exceeds character limit.'),
 
@@ -39,7 +37,6 @@ exports.message_create = [
 		if (!req.file && !req.body.text) {
 			return;
 		}
-
 		const errors = validationResult(req);
 
 		if (!errors.isEmpty()) {
@@ -51,7 +48,9 @@ exports.message_create = [
 			user: res.locals.user._id,
 			timestamp: new Date(),
 			text: req.body.text ? req.body.text : null,
-			image: req.file ? req.file.buffer : null,
+			image: req.file
+				? `data:image/jpeg;base64,${req.file.buffer.toString('base64')}`
+				: null,
 		};
 
 		const updatedChat = await Chat.findOneAndUpdate(
