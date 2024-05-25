@@ -51,30 +51,33 @@ async function refresh(req, res, next) {
 }
 
 function generateToken(user) {
-	return jwt.sign(
+	const token = jwt.sign(
 		{
-			_id: user._id,
+			id: user._id || user.id,
 			username: user.username,
-			email: user.email,
 			nickname: user.nickname,
+			chat_id: user.chat_id || user.current_chat,
 		},
 		process.env.ACCESS_TOKEN_SECRET,
 		{
 			expiresIn: '30s',
 		},
 	);
+
+	return token;
 }
 
 async function generateRefreshToken(user) {
 	const token = jwt.sign(
 		{
-			_id: user._id,
+			id: user._id,
 			username: user.username,
-			email: user.email,
 			nickname: user.nickname,
+			chat_id: user.current_chat,
 		},
 		process.env.REFRESH_TOKEN_SECRET,
 	);
+
 	const refreshToken = new Token({
 		refresh_token: token,
 	});
@@ -96,7 +99,8 @@ async function deleteRefreshToken(req, res, next) {
 	if (removedToken == null) return res.sendStatus(404);
 
 	res.clearCookie('refresh_token');
-	return res.sendStatus(200);
+
+	next();
 }
 
 module.exports = {

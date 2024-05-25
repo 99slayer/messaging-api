@@ -45,7 +45,7 @@ exports.message_create = [
 		}
 
 		const message = {
-			user: res.locals.user._id,
+			user: res.locals.user.id,
 			timestamp: new Date(),
 			text: req.body.text ? req.body.text : null,
 			image: req.file
@@ -67,6 +67,16 @@ exports.message_create = [
 ];
 
 exports.message_update = [
+	asyncHandler(async (req, res, next) => {
+		// Only allows message owners to edit them.
+		const chat = await Chat.findById(req.params.chatId);
+		const message = chat.messages.id(req.params.messageId);
+
+		if (message.user.toString() !== res.locals.user.id) return;
+
+		next();
+	}),
+
 	body('text')
 		.trim()
 		.notEmpty()
@@ -111,12 +121,24 @@ exports.message_update = [
 	}),
 ];
 
-exports.message_delete = asyncHandler(async (req, res, next) => {
-	const chat = await Chat.findOneAndUpdate(
-		{ _id: req.params.chatId },
-		{ $pull: { messages: { _id: req.params.messageId } } },
-		{ new: true },
-	);
+exports.message_delete = [
+	asyncHandler(async (req, res, next) => {
+		// Only allows message owners to delete them.
+		const chat = await Chat.findById(req.params.chatId);
+		const message = chat.messages.id(req.params.messageId);
 
-	res.sendStatus(200);
-});
+		if (message.user.toString() !== res.locals.user.id) return;
+
+		next();
+	}),
+
+	asyncHandler(async (req, res, next) => {
+		const chat = await Chat.findOneAndUpdate(
+			{ _id: req.params.chatId },
+			{ $pull: { messages: { _id: req.params.messageId } } },
+			{ new: true },
+		);
+
+		res.sendStatus(200);
+	}),
+];

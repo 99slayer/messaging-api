@@ -2,9 +2,12 @@ const asyncHandler = require('express-async-handler');
 const Chat = require('../models/chat');
 const User = require('../models/user');
 
+// Returns a list of the users chatrooms.
 exports.chat_list = asyncHandler(async (req, res, next) => {
 	const chats = [];
-	const user = await User.findById(res.locals.user._id, 'chats');
+	const user = await User.findById(res.locals.user.id, 'chats');
+
+	if (user.chats.length === 0) return res.sendStatus(400);
 
 	for (const id of user.chats) {
 		const chat = await Chat.findById(id, 'chat_name chat_owner users');
@@ -15,6 +18,8 @@ exports.chat_list = asyncHandler(async (req, res, next) => {
 });
 
 exports.chat_detail = asyncHandler(async (req, res, next) => {
+	if (req.params.chatId === null) return res.sendStatus(400);
+
 	const chat = await Chat.findById(
 		req.params.chatId,
 		'-most_recent_update -start_date',
@@ -26,13 +31,25 @@ exports.chat_detail = asyncHandler(async (req, res, next) => {
 	res.json({ chat });
 });
 
-// Request body should include an array of user ids.
+// Request body should include an array of usernames
 exports.chat_create = asyncHandler(async (req, res, next) => {
-	const userIds = req.body['user-list'].split(',');
+	const userIds = [];
+	const usernames = req.body['user-list'].split(',');
 
+	async function grabId(username) {
+		const user = await User.find({ username }, '_id');
+		return user[0]._id;
+	}
+
+	for (const username of usernames) {
+		const id = await grabId(username);
+		userIds.push(id);
+	}
+
+	// create and save chat
 	const chat = new Chat({
 		chat_name: req.body['chat-name'],
-		chat_owner: res.locals.user._id,
+		chat_owner: res.locals.user.id,
 		start_date: new Date(),
 		users: [...userIds],
 		messages: [],
@@ -49,36 +66,46 @@ exports.chat_create = asyncHandler(async (req, res, next) => {
 		);
 	}
 
-	userIds.forEach((id) => {
-		addChat(id);
-	});
+	// add chat to user docs
+	for (const userId of userIds) {
+		await addChat(userId);
+	}
 
 	res.status(200).send({ chatId: chat._id });
 });
 
 exports.chat_add_users = asyncHandler(async (req, res, next) => {
 	const chat = await Chat.findById(req.params.chatId);
-	const userIds = req.body['user-list'].split(',');
 
-	async function addChat(userId) {
+	if (chat.chat_owner.toString() !== res.locals.user.id) return;
+
+	const usernames = req.body['user-list'].split(',');
+	const ids = [...chat.users];
+
+	async function addChat(username) {
+		const user = await User.find({ username }, '_id');
+		const userId = user[0]._id;
+
 		if (chat.users.includes(userId)) return;
 
-		const updatedUser = await User.findOneAndUpdate(
+		await User.findOneAndUpdate(
 			{ _id: userId },
-			{ $push: { chats: chat._id } },
+			{ $addToSet: { chats: chat._id } },
 			{ new: true },
 		);
+
+		ids.push(userId);
 	}
 
 	// add chat to user docs
-	userIds.forEach((id) => {
-		addChat(id);
-	});
+	for (const username of usernames) {
+		await addChat(username);
+	}
 
 	// add users to chat doc
-	const updatedChat = await Chat.findOneAndUpdate(
+	await Chat.findOneAndUpdate(
 		{ _id: req.params.chatId },
-		{ users: userIds, chat_name: req.body['chat-name'] },
+		{ users: ids, chat_name: req.body['chat-name'] },
 		{ new: true },
 	);
 
@@ -88,17 +115,26 @@ exports.chat_add_users = asyncHandler(async (req, res, next) => {
 exports.chat_remove_user = asyncHandler(async (req, res, next) => {
 	const chat = await Chat.findById(req.params.chatId);
 
-	if (chat.chat_owner === req.body.userId) return;
+	if (
+		chat.chat_owner.toString() !== res.locals.user.id &&
+		req.body.username !== res.locals.user.username
+	)
+		return;
+
+	const user = await User.find({ username: req.body.username }, '_id');
+	const userId = user[0]._id;
+
+	if (chat.chat_owner.toString() === userId.toString()) return;
 
 	await User.findOneAndUpdate(
-		{ _id: req.body.userId },
+		{ _id: userId },
 		{ $pull: { chats: req.params.chatId } },
 		{ new: true },
 	);
 
 	await Chat.findOneAndUpdate(
 		{ _id: req.params.chatId },
-		{ $pull: { users: req.body.userId } },
+		{ $pull: { users: userId } },
 		{ new: true },
 	);
 
@@ -109,7 +145,7 @@ exports.chat_delete = asyncHandler(async (req, res, next) => {
 	const chat = await Chat.findById(req.params.chatId);
 	const userList = chat.users;
 
-	if (res.locals.user._id !== chat.chat_owner.toString()) {
+	if (res.locals.user.id !== chat.chat_owner.toString()) {
 		return res.sendStatus(403);
 	}
 

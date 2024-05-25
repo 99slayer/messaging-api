@@ -13,7 +13,7 @@ const UserSchema = new Schema(
 		join_date: { type: Date, required: true },
 		chats: [{ type: Schema.Types.ObjectId, ref: 'Chat' }],
 		current_chat: { type: Schema.Types.ObjectId, ref: 'Chat', default: null },
-		settings: { type: Map, of: String },
+		settings: { type: Map, of: String, default: {} },
 	},
 	{ toJSON: { virtuals: true } },
 );

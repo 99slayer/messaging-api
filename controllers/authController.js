@@ -42,7 +42,6 @@ exports.auth_login = [
 			secure: process.env.NODE_ENV !== 'development',
 			httpOnly: true,
 		});
-
 		return res.status(200).send({
 			user_id: user.id,
 			username: user.username,
@@ -55,3 +54,11 @@ exports.auth_login = [
 		});
 	}),
 ];
+
+exports.auth_storage_check = asyncHandler(async (req, res, next) => {
+	const usernameCheck = res.locals.user.username === req.body.username;
+	const nicknameCheck = res.locals.user.nickname === req.body.nickname;
+	const chatCheck = res.locals.user.chat_id === req.body.currentChat;
+	const check = usernameCheck && nicknameCheck && chatCheck;
+	return res.status(200).send({ ok: check });
+});
