@@ -218,8 +218,13 @@ exports.account_update = [
 				httpOnly: true,
 			});
 
+			const currentTime = Math.round(Date.now() / 1000);
+
 			return res.status(200).send({
-				access_token: auth.generateToken(userData),
+				access_token: auth.generateToken(
+					userData,
+					res.locals.user.exp - currentTime,
+				),
 				username: req.body.username ? req.body.username : '',
 				user_nickname: req.body.nickname ? req.body.nickname : '',
 			});
@@ -249,7 +254,12 @@ exports.account_change_chat = asyncHandler(async (req, res, next) => {
 		httpOnly: true,
 	});
 
+	const currentTime = Math.round(Date.now() / 1000);
+
 	return res.status(200).send({
-		access_token: auth.generateToken(updatedUser),
+		access_token: auth.generateToken(
+			updatedUser,
+			res.locals.user.exp - currentTime,
+		),
 	});
 });

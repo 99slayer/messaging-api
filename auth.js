@@ -50,7 +50,7 @@ async function refresh(req, res, next) {
 	});
 }
 
-function generateToken(user) {
+function generateToken(user, time = null) {
 	const token = jwt.sign(
 		{
 			id: user._id || user.id,
@@ -60,7 +60,7 @@ function generateToken(user) {
 		},
 		process.env.ACCESS_TOKEN_SECRET,
 		{
-			expiresIn: '30s',
+			expiresIn: time || '30s',
 		},
 	);
 
