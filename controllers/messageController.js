@@ -7,7 +7,7 @@ const storage = multer.memoryStorage();
 const MB = 1048576;
 const upload = multer({
 	storage,
-	limits: { fileSize: MB * 6 },
+	limits: { fileSize: MB * 2 },
 });
 
 exports.message_list = asyncHandler(async (req, res, next) => {
@@ -28,15 +28,45 @@ exports.message_create = [
 		next();
 	}),
 
+	body('image')
+		.if((value, { req }) => {
+			return req.file;
+		})
+		.custom((value, { req }) => {
+			if (!req.file) return true;
+
+			const types = ['image/png', 'image/jpeg', 'image/jpg'];
+			const extensions = ['png', 'jpeg', 'jpg'];
+			const getExtension = (fileName) => {
+				return fileName.slice(((fileName.lastIndexOf('.') - 1) >>> 0) + 2);
+			};
+
+			if (!extensions.includes(getExtension(req.file.originalname))) {
+				throw Error(
+					`file ${req.file.originalname} has an invalid file extension.`,
+				);
+			}
+
+			if (!types.includes(req.file.mimetype)) {
+				throw Error(`file ${req.file.originalname} has an invalid mimetype.`);
+			}
+
+			if (req.file.size > MB * 2) {
+				throw Error(`file ${req.file.originalname} is too big.`);
+			}
+
+			return true;
+		}),
 	body('text')
 		.trim()
-		.isLength({ max: 900 })
+		.isLength({ max: 2000 })
 		.withMessage('Message exceeds character limit.'),
 
 	asyncHandler(async (req, res, next) => {
 		if (!req.file && !req.body.text) {
 			return;
 		}
+
 		const errors = validationResult(req);
 
 		if (!errors.isEmpty()) {

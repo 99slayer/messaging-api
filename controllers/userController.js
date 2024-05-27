@@ -35,11 +35,11 @@ exports.user_create = [
 		.isLength({ max: 50 })
 		.withMessage('Username should not be longer than 50 characters.')
 		.custom(async (value, { req }) => {
-			// Checks for duplicate usernames
+			// Checks for duplicate usernames.
 			const users = await User.find({ username: req.body.username });
 
 			if (users.length > 0) {
-				throw new Error('That username already exists.');
+				throw new Error('Username already exists.');
 			}
 
 			return true;
@@ -69,7 +69,17 @@ exports.user_create = [
 		.isEmail()
 		.withMessage('Invalid email.')
 		.isLength({ min: 10, max: 150 })
-		.withMessage('Email length is invalid.'),
+		.withMessage('Email length is invalid.')
+		.custom(async (value, { req }) => {
+			// Checks for duplicate emails.
+			const users = await User.find({ email: req.body.email });
+
+			if (users.length > 0) {
+				throw new Error('Email already exists.');
+			}
+
+			return true;
+		}),
 	body('nickname')
 		.if((value, { req }) => {
 			return req.body.nickname;

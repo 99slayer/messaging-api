@@ -11,7 +11,7 @@ const storage = multer.memoryStorage();
 const MB = 1048576;
 const upload = multer({
 	storage,
-	limits: { fileSize: MB * 6 },
+	limits: { fileSize: MB * 2 },
 });
 
 const innerWhitespace = (string) => {
@@ -36,6 +36,35 @@ exports.account_update = [
 		next();
 	}),
 
+	body('pfp')
+		.if((value, { req }) => {
+			return req.file;
+		})
+		.custom((value, { req }) => {
+			if (!req.file) return true;
+
+			const types = ['image/png', 'image/jpeg', 'image/jpg'];
+			const extensions = ['png', 'jpeg', 'jpg'];
+			const getExtension = (fileName) => {
+				return fileName.slice(((fileName.lastIndexOf('.') - 1) >>> 0) + 2);
+			};
+
+			if (!extensions.includes(getExtension(req.file.originalname))) {
+				throw Error(
+					`file ${req.file.originalname} has an invalid file extension.`,
+				);
+			}
+
+			if (!types.includes(req.file.mimetype)) {
+				throw Error(`file ${req.file.originalname} has an invalid mimetype.`);
+			}
+
+			if (req.file.size > MB * 2) {
+				throw Error(`file ${req.file.originalname} is too big.`);
+			}
+
+			return true;
+		}),
 	body('username')
 		.if((value, { req }) => {
 			return req.body.username;
@@ -47,11 +76,11 @@ exports.account_update = [
 		.isLength({ max: 50 })
 		.withMessage('Username should not be longer than 50 characters.')
 		.custom(async (value, { req }) => {
-			// Checks for duplicate usernames
+			// Checks for duplicate usernames.
 			const users = await User.find({ username: req.body.username });
 
 			if (users.length > 0) {
-				throw new Error('That username already exists.');
+				throw new Error('Username already exists.');
 			}
 
 			return true;
@@ -97,7 +126,17 @@ exports.account_update = [
 		.isEmail()
 		.withMessage('Invalid email.')
 		.isLength({ min: 10, max: 150 })
-		.withMessage('Email length is invalid.'),
+		.withMessage('Email length is invalid.')
+		.custom(async (value, { req }) => {
+			// Checks for duplicate emails.
+			const users = await User.find({ email: req.body.email });
+
+			if (users.length > 0) {
+				throw new Error('Email already exists.');
+			}
+
+			return true;
+		}),
 	body('nickname')
 		.if((value, { req }) => {
 			return req.body.nickname;
