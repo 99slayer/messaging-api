@@ -1,7 +1,5 @@
 require('dotenv').config();
-const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const debug = require('debug')('auth');
 const Token = require('./models/token');
 
 // Verifies user access using an access token.
@@ -13,7 +11,6 @@ function verify(req, res, next) {
 
 	jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, authData) => {
 		if (err) {
-			debug(err);
 			return res.status(401).send(err.message || 'Unauthorized');
 		} else {
 			res.locals.user = authData;
@@ -34,8 +31,6 @@ async function refresh(req, res, next) {
 
 	jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, async (err, authData) => {
 		if (err) {
-			debug(err);
-
 			if (err.name === 'TokenExpiredError') {
 				await Token.findOneAndDelete({
 					refresh_token: token,

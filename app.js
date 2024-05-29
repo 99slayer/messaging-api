@@ -4,15 +4,22 @@ const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 require('dotenv').config();
 const cors = require('cors');
+const compression = require('compression');
+const helmet = require('helmet');
 
 const apiRouter = require('./routes/api');
-const testRouter = require('./routes/test-routes');
 
 const app = express();
 
+const RateLimit = require('express-rate-limit');
+const limiter = RateLimit({
+	windowMs: 1 * 60 * 1000,
+	max: 500,
+});
+
 const mongoose = require('mongoose');
 mongoose.set('strictQuery', false);
-const db = process.env.TEST_DB;
+const db = process.env.PROD_DB || process.env.TEST_DB;
 
 main().catch((err) => console.log(err));
 async function main() {
@@ -29,6 +36,9 @@ app.use(
 	}),
 );
 app.use(cookieParser());
+app.use(compression());
+app.use(helmet());
+app.use(limiter);
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api', apiRouter);

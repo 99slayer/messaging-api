@@ -1,7 +1,3 @@
 /node_modules
 .env
 INFO.md
-populate-test-db.js
-clear-test-db.js
-/rest
-maintenance.js
